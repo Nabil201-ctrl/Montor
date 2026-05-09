@@ -34,13 +34,22 @@ router.get('/:id', requireAuth, async (req, res) => {
     const dayMilestones = allMilestones.filter(m => m.createdAt && m.createdAt.startsWith(dateStr))
 
     historyLabels.push(label)
+
     historyCommits.push(dayLogs.reduce((s, l) => s + (l.commits || 0), 0))
     historyMilestones.push(dayMilestones.length)
     historyVibeScore.push(Math.max(30, (project.vibeScore || 50) - (i * 2)))
   }
 
+  // 🧠 AI Rubber Duck — context-aware question for the developer
+  const { generateRubberDuck } = require('../services/ai')
+  const lastMilestone = allMilestones[0]
+  const rubberDuck = lastMilestone
+    ? await generateRubberDuck({ project, lastCommitMessage: lastMilestone.title })
+    : "What feature would make the biggest impact on this project right now?"
+
   res.json({
     ...project,
+    rubberDuck,
     history: {
       labels: historyLabels,
       commits: historyCommits,
@@ -63,7 +72,11 @@ router.post('/:id/milestones', requireAuth, async (req, res) => {
   if (!project || project.userId !== req.user.id) return res.status(404).json({ error: 'Not found' })
   
   const { commitMessage, diff } = req.body
-  const aiData = generateMilestone({ project, commitMessage, diff })
+  const aiData = await generateMilestone({
+    project,
+    commitMessage: commitMessage,
+    diff: diff,
+  })
   const milestone = await Milestones.create({ projectId: project.id, userId: req.user.id, ...aiData })
   await Users.addMomentumPoints(req.user.id, 10)
   res.status(201).json(milestone)
@@ -92,7 +105,19 @@ router.post('/:id/sync', requireAuth, async (req, res) => {
     if (stats.error) {
       return res.status(500).json({ error: 'Sync failed', detail: stats.error })
     }
-    res.json({ message: 'Sync complete', stats })
+
+    // 🧠 AI detects project phase after sync
+    const { detectPhaseWithAI } = require('../services/ai')
+    const latestDevlogs = await DevLogs.findByProject(project.id)
+    const recentMessages = latestDevlogs.slice(0, 10).map(d => d.title).join('\n')
+    const phaseResult = await detectPhaseWithAI({ project, recentCommitMessages: recentMessages })
+    
+    if (phaseResult.phase !== project.phase) {
+      await Projects.update(project.id, { phase: phaseResult.phase })
+      console.log(`🔄 Phase updated: ${project.name} → ${phaseResult.phase} (${phaseResult.reason})`)
+    }
+
+    res.json({ message: 'Sync complete', stats, phaseDetection: phaseResult })
   } catch (err) {
     res.status(500).json({ error: 'Sync failed', detail: err.message })
   }

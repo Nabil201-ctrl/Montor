@@ -71,17 +71,25 @@ router.get('/github/callback', async (req, res) => {
 
   try {
     // Exchange code for access token
-    const tokenRes = await axios.post(
+    const { githubAxios } = require('../utils/githubClient')
+    
+    const tokenRes = await githubAxios.post(
       'https://github.com/login/oauth/access_token',
       { client_id: GITHUB_CLIENT_ID, client_secret: GITHUB_CLIENT_SECRET, code },
-      { headers: { Accept: 'application/json' } }
+      { 
+        headers: { Accept: 'application/json' },
+        retry: 3, 
+        retryDelay: 1000 
+      }
     )
     const { access_token } = tokenRes.data
     if (!access_token) return res.redirect(`${FRONTEND_URL}?error=no_token`)
 
     // Fetch GitHub user profile
-    const { data: ghUser } = await axios.get('https://api.github.com/user', {
+    const { data: ghUser } = await githubAxios.get('https://api.github.com/user', {
       headers: { Authorization: `Bearer ${access_token}`, Accept: 'application/vnd.github+json' },
+      retry: 2,
+      retryDelay: 500
     })
 
     // Upsert in our DB

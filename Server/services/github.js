@@ -1,12 +1,14 @@
-const axios = require('axios')
+const { githubAxios } = require('../utils/githubClient')
 const { Projects, Milestones, DevLogs } = require('../db')
 
 async function syncReposFromGitHub(user) {
   if (!user.githubAccessToken) return []
   try {
-    const { data: repos } = await axios.get('https://api.github.com/user/repos', {
+    const { data: repos } = await githubAxios.get('https://api.github.com/user/repos', {
       params: { sort: 'pushed', per_page: 5 },
       headers: { Authorization: `Bearer ${user.githubAccessToken}`, Accept: 'application/vnd.github+json' },
+      retry: 3,
+      retryDelay: 1000
     })
 
     const synced = []
@@ -41,9 +43,11 @@ async function ingestProjectHistory(user, project) {
   if (!owner || !repo) return { error: 'Invalid repo URL' }
 
   try {
-    const { data: commits } = await axios.get(`https://api.github.com/repos/${owner}/${repo}/commits`, {
+    const { data: commits } = await githubAxios.get(`https://api.github.com/repos/${owner}/${repo}/commits`, {
       params: { per_page: 30 },
       headers: { Authorization: `Bearer ${user.githubAccessToken}`, Accept: 'application/vnd.github+json' },
+      retry: 3,
+      retryDelay: 2000
     })
 
     const dailyGroups = {}
@@ -61,13 +65,16 @@ async function ingestProjectHistory(user, project) {
       const mainCommit = dayCommits[0]
       const timestamp = mainCommit.commit.author.date
 
+      const { generateDevLogContent } = require('./ai')
+      const aiLog = await generateDevLogContent({ project, commits: dayCommits, dateStr })
+
       await DevLogs.create({
         userId: user.id,
         projectId: project.id,
         projectName: project.name,
-        title: `Sync: ${dayCommits.length} commits`,
-        content: `GitHub history import. Key focus: ${mainCommit.commit.message.split('\n')[0]}`,
-        mood: 'productive',
+        title: aiLog.title,
+        content: aiLog.content,
+        mood: aiLog.mood,
         duration: dayCommits.length * 30,
         commits: dayCommits.length,
         createdAt: timestamp,
@@ -75,14 +82,16 @@ async function ingestProjectHistory(user, project) {
       logsCreated++
 
       if (dayCommits.length >= 2) {
+        const { generateMilestone } = require('./ai')
+        const aiData = await generateMilestone({
+          project,
+          commitMessage: mainCommit.commit.message,
+          commitCount: dayCommits.length,
+        })
         await Milestones.create({
           projectId: project.id,
           userId: user.id,
-          title: `${mainCommit.commit.message.split('\n')[0]}`,
-          summary: `Imported from GitHub history (${dayCommits.length} commits on ${dateStr}).`,
-          sentiment: 'excited',
-          sentimentEmoji: '⚡',
-          vibeShift: 5,
+          ...aiData,
           createdAt: timestamp,
         })
         milestonesCreated++

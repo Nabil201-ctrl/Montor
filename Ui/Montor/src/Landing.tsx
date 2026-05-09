@@ -210,23 +210,44 @@ export default function Landing({ onLogin }: { onLogin: () => void }) {
       </section>
 
       {/* HOW IT WORKS */}
-      <section id="how" className="mb-24">
-        <div className="text-center mb-14">
-          <h2 className="text-3xl md:text-4xl font-black tracking-tight mb-4">From repo to record<br />in four steps.</h2>
+      <section id="how" className="mb-32 overflow-hidden px-4">
+        <div className="text-center mb-20">
+          <h2 className="text-4xl md:text-6xl font-black tracking-tight mb-4">From repo to record<br />in four steps.</h2>
+          <p className="text-text-secondary text-lg">The zero-friction path to professional proof of work.</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          {steps.map((s, i) => (
-            <div key={i} className="relative">
-              {i < steps.length - 1 && (
-                <div className="hidden md:block absolute top-5 left-[calc(100%-12px)] w-6 h-px bg-border z-10" />
-              )}
-              <div className="bg-bg-card border border-border rounded-radius p-6">
-                <div className="text-3xl font-black text-accent/30 mb-4">{s.num}</div>
-                <h3 className="font-bold mb-2">{s.title}</h3>
-                <p className="text-text-secondary text-sm leading-relaxed">{s.desc}</p>
+
+        <div className="relative max-w-6xl mx-auto">
+          {/* Timeline Connector Line */}
+          <div className="absolute top-[48px] left-[10%] right-[10%] h-[2px] bg-border hidden md:block">
+            <div className="absolute inset-0 bg-gradient-to-r from-accent via-accent-light to-accent opacity-50" />
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-accent to-transparent animate-pulse" />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
+            {steps.map((s, i) => (
+              <div key={i} className="relative flex flex-col items-center text-center group">
+                {/* Step Marker */}
+                <div className="w-24 h-24 mb-10 relative flex items-center justify-center">
+                  <div className="absolute inset-0 bg-accent/20 rounded-3xl blur-2xl opacity-0 group-hover:opacity-100 transition-all duration-500 scale-50 group-hover:scale-100" />
+                  <div className="w-16 h-16 bg-bg-card border-2 border-border rounded-2xl flex items-center justify-center font-black text-2xl text-accent shadow-2xl relative z-10 transition-all duration-300 group-hover:border-accent group-hover:-translate-y-2 group-hover:rotate-3">
+                    {s.num}
+                  </div>
+                  {/* Floating particle */}
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-green rounded-full opacity-0 group-hover:opacity-100 transition-opacity animate-bounce delay-150" />
+                </div>
+
+                <h3 className="text-xl font-bold mb-4 group-hover:text-accent transition-colors duration-300">{s.title}</h3>
+                <p className="text-text-secondary text-sm leading-relaxed max-w-[240px]">
+                  {s.desc}
+                </p>
+
+                {/* Mobile Connector */}
+                {i < steps.length - 1 && (
+                  <div className="w-px h-12 bg-border my-6 md:hidden" />
+                )}
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 

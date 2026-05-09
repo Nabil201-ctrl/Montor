@@ -1,6 +1,7 @@
 const router = require('express').Router()
 const { Feed, Milestones, Users } = require('../db')
 const { requireAuth } = require('../middleware/auth')
+const { generateFeedCaption } = require('../services/ai')
 
 // GET /api/feed — public momentum feed
 router.get('/', async (req, res) => {
@@ -25,6 +26,9 @@ router.post('/publish', requireAuth, async (req, res) => {
 
   await Milestones.publish(milestoneId)
 
+  // 🧠 AI generates an engaging caption if user didn't provide one
+  const caption = message || await generateFeedCaption({ milestone, user: req.user })
+
   const item = await Feed.create({
     type: 'milestone',
     userId: req.user.id,
@@ -35,7 +39,7 @@ router.post('/publish', requireAuth, async (req, res) => {
       sentiment: milestone.sentiment,
       sentimentEmoji: milestone.sentimentEmoji,
       tags: milestone.tags,
-      message: message || '',
+      message: caption,
     }),
     metadata: { milestoneId }
   })

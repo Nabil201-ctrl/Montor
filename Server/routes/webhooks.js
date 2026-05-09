@@ -1,6 +1,6 @@
 const router = require('express').Router()
-const { Projects, Milestones, Users } = require('../db')
-const { generateMilestone, analyzeHealth } = require('../services/ai')
+const { Projects, Milestones, DevLogs, Users } = require('../db')
+const { generateMilestone, analyzeHealth, generateDevLogContent, detectPhaseWithAI } = require('../services/ai')
 
 // POST /api/webhooks/github — receive push events from GitHub App
 router.post('/github', (req, res) => {
@@ -24,10 +24,12 @@ async function handlePush(payload) {
     if (!repoUrl || commits.length === 0) return
 
     // Find the project by GitHub repo URL
-    const allProjects = await Projects.findAll ? await Projects.findAll() : [] // This is a bit of a stretch
+    const allProjects = await Projects.findAll ? await Projects.findAll() : []
     const project = allProjects.find(p => p.repoUrl === repoUrl)
 
     if (!project) return
+
+    console.log(`\n📥 Webhook Push: ${commits.length} commits to "${project.name}"`)
 
     // Update commit count
     await Projects.update(project.id, {
@@ -35,10 +37,24 @@ async function handlePush(payload) {
       lastCommitAt: new Date().toISOString(),
     })
 
-    // Generate a milestone if spike detected (>= 3 commits in one push)
+    // 🧠 AI: Generate a DevLog for every push
+    const dateStr = new Date().toISOString().split('T')[0]
+    const aiLog = await generateDevLogContent({ project, commits, dateStr })
+    await DevLogs.create({
+      userId: project.userId,
+      projectId: project.id,
+      projectName: project.name,
+      title: aiLog.title,
+      content: aiLog.content,
+      mood: aiLog.mood,
+      duration: commits.length * 15,
+      commits: commits.length,
+    })
+
+    // 🧠 AI: Generate a milestone if spike detected (>= 3 commits in one push)
     if (commits.length >= 3) {
       const latestCommit = commits[commits.length - 1]
-      const aiData = generateMilestone({
+      const aiData = await generateMilestone({
         project,
         commitMessage: latestCommit.message,
         commitCount: commits.length,
@@ -47,9 +63,17 @@ async function handlePush(payload) {
       await Users.addMomentumPoints(project.userId, commits.length * 5)
     }
 
-    // Run health analysis
+    // 🧠 AI: Run health analysis
     const health = analyzeHealth(commits)
-    await Projects.update(project.id, { healthScore: health.score, healthLabel: health.label })
+    await Projects.update(project.id, { healthScore: health.score })
+
+    // 🧠 AI: Detect phase shift
+    const recentCommitMessages = commits.map(c => c.message).join('\n')
+    const phaseResult = await detectPhaseWithAI({ project, recentCommitMessages })
+    if (phaseResult.phase !== project.phase) {
+      await Projects.update(project.id, { phase: phaseResult.phase })
+      console.log(`🔄 Phase shift detected: ${project.name} → ${phaseResult.phase}`)
+    }
 
   } catch (err) {
     console.error('Webhook handler error:', err.message)

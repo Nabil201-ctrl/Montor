@@ -1,6 +1,7 @@
 const router = require('express').Router()
 const { Projects, Milestones, DevLogs } = require('../db')
 const { requireAuth } = require('../middleware/auth')
+const { generateDashboardInsight } = require('../services/ai')
 
 // GET /api/stats — dashboard summary for current user
 router.get('/', requireAuth, async (req, res) => {
@@ -37,6 +38,11 @@ router.get('/', requireAuth, async (req, res) => {
     weeklyVelocity.push(dayLogs.reduce((s, l) => s + (l.commits || 0), 0) * 5) // 5 pts per commit
   }
 
+  // 🧠 AI-powered personalized insight
+  const aiInsight = await generateDashboardInsight({
+    projects, milestones: allMilestones, devlogs: allDevLogs, user: req.user
+  })
+
   res.json({
     activeProjects: projects.length,
     totalMilestones: allMilestones.length,
@@ -46,6 +52,7 @@ router.get('/', requireAuth, async (req, res) => {
     avgHealth,
     vibeProjects,
     systemProjects,
+    aiInsight,
     weeklyActivity: {
       labels: weeklyLabels,
       commits: weeklyCommits,
