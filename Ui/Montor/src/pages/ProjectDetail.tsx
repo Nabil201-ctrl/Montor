@@ -5,18 +5,7 @@ import { projects as api } from '../lib/api'
 import '../lib/chart-setup'
 import { CHART_COLORS, accentGradient } from '../lib/chart-setup'
 
-function generateProjectHistory() {
-  const labels = Array.from({ length: 14 }, (_, i) => {
-    const d = new Date(); d.setDate(d.getDate() - (13 - i))
-    return d.toLocaleDateString('en', { month: 'short', day: 'numeric' })
-  })
-  return {
-    labels,
-    commits: labels.map(() => Math.floor(Math.random() * 8)),
-    vibeScore: labels.map((_, i) => Math.min(100, 30 + i * 5 + Math.floor(Math.random() * 10))),
-  }
-}
-
+// Detail page for a specific project with charts and logs
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>()
   const [project, setProject] = useState<any>(null)
@@ -26,7 +15,6 @@ export default function ProjectDetail() {
   const [generating, setGenerating] = useState(false)
   const [rubberDuck, setRubberDuck] = useState('')
   const [loading, setLoading] = useState(true)
-  const [history] = useState(generateProjectHistory)
 
   useEffect(() => {
     if (!id) return
@@ -53,6 +41,8 @@ export default function ProjectDetail() {
   const tabClass = (t: string) => `px-4 py-2 text-sm font-medium rounded-lg transition-all ${
     tab === t ? 'bg-accent/10 text-accent border border-accent/20' : 'text-text-secondary hover:text-text'
   }`
+
+  const history = project?.history || { labels: [], commits: [], vibeScore: [], milestones: [] }
 
   // ─── Chart Data ─────────────────────────────────────────────────────────
   const commitLineData = {
@@ -125,7 +115,7 @@ export default function ProjectDetail() {
     labels: history.labels.slice(-7),
     datasets: [{
       label: 'Milestones',
-      data: history.labels.slice(-7).map(() => Math.floor(Math.random() * 3)),
+      data: history.milestones?.slice(-7) || [],
       backgroundColor: CHART_COLORS.accentLight,
       borderRadius: 6,
       borderSkipped: false,

@@ -17,23 +17,12 @@ function StatCard({ label, value, sub, color = 'accent' }: any) {
   )
 }
 
-// Generate mock weekly data for charts
-function generateWeeklyData() {
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-  return {
-    labels: days,
-    commits: days.map(() => Math.floor(Math.random() * 12) + 1),
-    momentum: days.map(() => Math.floor(Math.random() * 40) + 30),
-    velocity: days.map(() => Math.floor(Math.random() * 60) + 20),
-  }
-}
-
+// Dashboard page showing momentum and health tracking
 export default function Dashboard() {
   const { user } = useAuth()
   const [data, setData] = useState<any>(null)
   const [projs, setProjs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [weekly] = useState(generateWeeklyData)
   const lineRef = useRef<any>(null)
 
   useEffect(() => {
@@ -47,6 +36,8 @@ export default function Dashboard() {
 
   const vibePercent = data ? Math.round((data.vibeProjects / (data.activeProjects || 1)) * 100) : 50
   const systemPercent = 100 - vibePercent
+
+  const weekly = data?.weeklyActivity || { labels: [], commits: [], momentum: [], velocity: [] }
 
   // ─── Chart Configs ────────────────────────────────────────────────────────
   const momentumLineData = {
@@ -173,7 +164,7 @@ export default function Dashboard() {
     labels: ['Commit Freq', 'Sentiment', 'Consistency', 'Phase Progress', 'Documentation', 'Test Coverage'],
     datasets: [{
       label: 'Project Health',
-      data: [78, 85, 60, vibePercent, 45, 30],
+      data: data?.radarMetrics || [0, 0, 0, 0, 0, 0],
       backgroundColor: 'rgba(99, 102, 241, 0.15)',
       borderColor: CHART_COLORS.accent,
       borderWidth: 2,
