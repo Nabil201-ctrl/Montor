@@ -15,6 +15,7 @@ interface AuthCtx {
   token: string | null
   loading: boolean
   setToken: (t: string) => void
+  setUser: (u: User | null) => void
   logout: () => void
 }
 
@@ -44,7 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setLoading(false))
   }, [token])
 
-  return <Ctx.Provider value={{ user, token, loading, setToken, logout }}>{children}</Ctx.Provider>
+  return <Ctx.Provider value={{ user, token, loading, setToken, setUser, logout }}>{children}</Ctx.Provider>
 }
 
 export const useAuth = () => useContext(Ctx)

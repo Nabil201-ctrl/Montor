@@ -4,7 +4,7 @@ import { auth } from './lib/api'
 import { useAuth } from './context/AuthContext'
 
 const Signup = () => {
-  const { user, login: setAuth } = useAuth()
+  const { user, setUser } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -19,9 +19,9 @@ const Signup = () => {
     setError('')
     setLoading(true)
     try {
-      const res = await auth.register({ email, password, name })
+      const res = await auth.register({ email, password, name }) as any
       localStorage.setItem('montor_token', res.token)
-      setAuth(res.user)
+      setUser(res.user)
       navigate('/dashboard')
     } catch (err: any) {
       setError(err.error || 'Registration failed')
