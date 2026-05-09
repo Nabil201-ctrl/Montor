@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
 import { feed as api } from '../lib/api'
-import { useAuth } from '../context/AuthContext'
+
 
 export default function SocialFeed() {
-  const { user } = useAuth()
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 

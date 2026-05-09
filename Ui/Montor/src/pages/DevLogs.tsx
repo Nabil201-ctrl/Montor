@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Bar } from 'react-chartjs-2'
-import { useAuth } from '../context/AuthContext'
 import '../lib/chart-setup'
 import { CHART_COLORS } from '../lib/chart-setup'
 import api from '../lib/api'
@@ -33,7 +32,6 @@ function formatDate(dateStr: string) {
 }
 
 export default function DevLogs() {
-  const { user } = useAuth()
   const [logs, setLogs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('all')
