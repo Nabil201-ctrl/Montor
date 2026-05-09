@@ -11,11 +11,12 @@ datasource db {
 
 model User {
   id                 String      @id @default(uuid())
-  githubId           String      @unique
-  login              String
+  githubId           String?     @unique
+  login              String?     @unique
+  password           String?     // Hashed password for email/password auth
   name               String?
   avatarUrl          String?
-  email              String?
+  email              String?     @unique
   momentumPoints     Int         @default(0)
   vibeScore          Int         @default(50)
   streak             Int         @default(0)

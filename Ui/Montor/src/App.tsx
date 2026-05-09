@@ -1,7 +1,8 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import Landing from './Landing'
 import Login from './Login'
+import Signup from './Signup'
 import AuthCallback from './pages/AuthCallback'
 import AppLayout from './layouts/AppLayout'
 import Dashboard from './pages/Dashboard'
@@ -20,13 +21,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-import { auth } from './lib/api'
-
 function RootPage() {
   const { user, loading } = useAuth()
+  const navigate = useNavigate()
   if (loading) return null
   if (user) return <Navigate to="/dashboard" replace />
-  return <Landing onLogin={() => { window.location.href = auth.loginUrl() }} />
+  return <Landing onLogin={() => navigate('/login')} />
 }
 
 function AppRoutes() {
@@ -34,6 +34,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<RootPage />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
 
       <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>

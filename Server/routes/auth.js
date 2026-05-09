@@ -3,12 +3,56 @@ const axios = require('axios')
 const { Users } = require('../db')
 const { signToken } = require('../middleware/auth')
 
+const bcrypt = require('bcryptjs')
 const {
   GITHUB_CLIENT_ID,
   GITHUB_CLIENT_SECRET,
   GITHUB_REDIRECT_URI,
   FRONTEND_URL,
 } = process.env
+
+// POST /api/auth/register
+router.post('/register', async (req, res) => {
+  const { email, password, name } = req.body
+  if (!email || !password) return res.status(400).json({ error: 'Email and password required' })
+
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10)
+    const user = await Users.upsert({
+      email,
+      password: hashedPassword,
+      name: name || email.split('@')[0],
+      login: email.split('@')[0], // Default login for new users
+    })
+
+    const token = signToken(user.id)
+    const { password: _, ...safeUser } = user
+    res.status(201).json({ token, user: safeUser })
+  } catch (err) {
+    if (err.code === 'P2002') return res.status(400).json({ error: 'Email already exists' })
+    res.status(500).json({ error: 'Registration failed' })
+  }
+})
+
+// POST /api/auth/login
+router.post('/login', async (req, res) => {
+  const { email, password } = req.body
+  if (!email || !password) return res.status(400).json({ error: 'Email and password required' })
+
+  try {
+    const user = await Users.findByEmail(email)
+    if (!user || !user.password) return res.status(401).json({ error: 'Invalid credentials' })
+
+    const isValid = await bcrypt.compare(password, user.password)
+    if (!isValid) return res.status(401).json({ error: 'Invalid credentials' })
+
+    const token = signToken(user.id)
+    const { password: _, ...safeUser } = user
+    res.json({ token, user: safeUser })
+  } catch (err) {
+    res.status(500).json({ error: 'Login failed' })
+  }
+})
 
 // Step 1 — redirect browser to GitHub
 router.get('/github', (req, res) => {

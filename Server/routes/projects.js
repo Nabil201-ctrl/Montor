@@ -98,4 +98,13 @@ router.post('/:id/sync', requireAuth, async (req, res) => {
   }
 })
 
+// DELETE /api/projects/:id — remove a project
+router.delete('/:id', requireAuth, async (req, res) => {
+  const project = await Projects.findById(req.params.id)
+  if (!project || project.userId !== req.user.id) return res.status(404).json({ error: 'Not found' })
+  
+  await Projects.delete(req.params.id)
+  res.json({ message: 'Project removed' })
+})
+
 module.exports = router

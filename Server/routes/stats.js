@@ -4,10 +4,11 @@ const { requireAuth } = require('../middleware/auth')
 
 // GET /api/stats — dashboard summary for current user
 router.get('/', requireAuth, async (req, res) => {
-  const projects = await Projects.findByUser(req.user.id)
-  const allMilestonesArrays = await Promise.all(projects.map(p => Milestones.findByProject(p.id)))
-  const allMilestones = allMilestonesArrays.flat()
-  const allDevLogs = await DevLogs.findByUser(req.user.id)
+  const [projects, allMilestones, allDevLogs] = await Promise.all([
+    Projects.findByUser(req.user.id),
+    Milestones.findByUser(req.user.id),
+    DevLogs.findByUser(req.user.id)
+  ])
 
   const vibeProjects = projects.filter(p => p.phase === 'vibe').length
   const systemProjects = projects.filter(p => p.phase === 'system').length

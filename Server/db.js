@@ -8,21 +8,48 @@ const Users = {
   findById: async (id) => {
     return prisma.user.findUnique({ where: { id } })
   },
+  findByEmail: async (email) => {
+    return prisma.user.findUnique({ where: { email } })
+  },
+  findByLogin: async (login) => {
+    return prisma.user.findUnique({ where: { login } })
+  },
   findAll: async () => {
     return prisma.user.findMany()
   },
 
-  upsert: async ({ githubId, login, name, avatarUrl, email, githubAccessToken }) => {
+  upsert: async (data) => {
+    const { githubId, email, login, password, name, avatarUrl, githubAccessToken } = data
+    
+    // If githubId is provided, we use it as the primary key for sync
+    if (githubId) {
+      return prisma.user.upsert({
+        where: { githubId: String(githubId) },
+        update: { login, name, avatarUrl, email, githubAccessToken, updatedAt: new Date() },
+        create: {
+          githubId: String(githubId),
+          login,
+          name,
+          avatarUrl,
+          email,
+          githubAccessToken,
+          momentumPoints: 0,
+          vibeScore: 50,
+          streak: 0,
+          badges: [],
+        },
+      })
+    }
+
+    // Otherwise, we use email as the primary key for real auth
     return prisma.user.upsert({
-      where: { githubId: String(githubId) },
-      update: { login, name, avatarUrl, email, githubAccessToken, updatedAt: new Date() },
+      where: { email },
+      update: { password, name, login, updatedAt: new Date() },
       create: {
-        githubId: String(githubId),
-        login,
-        name,
-        avatarUrl,
         email,
-        githubAccessToken,
+        password,
+        name,
+        login,
         momentumPoints: 0,
         vibeScore: 50,
         streak: 0,
@@ -93,6 +120,12 @@ const Milestones = {
   findByProject: async (projectId) => {
     return prisma.milestone.findMany({ 
       where: { projectId },
+      orderBy: { createdAt: 'desc' }
+    })
+  },
+  findByUser: async (userId) => {
+    return prisma.milestone.findMany({ 
+      where: { userId },
       orderBy: { createdAt: 'desc' }
     })
   },

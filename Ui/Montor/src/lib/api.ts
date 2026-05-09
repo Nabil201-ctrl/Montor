@@ -20,6 +20,8 @@ export default api
 export const auth = {
   me: () => api.get('/auth/me'),
   loginUrl: () => `${BASE}/auth/github`,
+  login: (data: any) => api.post('/auth/login', data),
+  register: (data: any) => api.post('/auth/register', data),
 }
 
 export const projects = {
