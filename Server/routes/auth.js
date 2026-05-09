@@ -1,0 +1,73 @@
+const router = require('express').Router()
+const axios = require('axios')
+const { Users } = require('../db')
+const { signToken } = require('../middleware/auth')
+
+const {
+  GITHUB_CLIENT_ID,
+  GITHUB_CLIENT_SECRET,
+  GITHUB_REDIRECT_URI,
+  FRONTEND_URL,
+} = process.env
+
+// Step 1 — redirect browser to GitHub
+router.get('/github', (req, res) => {
+  const params = new URLSearchParams({
+    client_id: GITHUB_CLIENT_ID,
+    redirect_uri: GITHUB_REDIRECT_URI,
+    scope: 'read:user user:email repo',
+  })
+  res.redirect(`https://github.com/login/oauth/authorize?${params}`)
+})
+
+// Step 2 — GitHub redirects back here with a code
+router.get('/github/callback', async (req, res) => {
+  const { code } = req.query
+  if (!code) return res.redirect(`${FRONTEND_URL}?error=no_code`)
+
+  try {
+    // Exchange code for access token
+    const tokenRes = await axios.post(
+      'https://github.com/login/oauth/access_token',
+      { client_id: GITHUB_CLIENT_ID, client_secret: GITHUB_CLIENT_SECRET, code },
+      { headers: { Accept: 'application/json' } }
+    )
+    const { access_token } = tokenRes.data
+    if (!access_token) return res.redirect(`${FRONTEND_URL}?error=no_token`)
+
+    // Fetch GitHub user profile
+    const { data: ghUser } = await axios.get('https://api.github.com/user', {
+      headers: { Authorization: `Bearer ${access_token}`, Accept: 'application/vnd.github+json' },
+    })
+
+    // Upsert in our DB
+    const user = await Users.upsert({
+      githubId: ghUser.id,
+      login: ghUser.login,
+      name: ghUser.name || ghUser.login,
+      avatarUrl: ghUser.avatar_url,
+      email: ghUser.email,
+      githubAccessToken: access_token
+    })
+
+    // Sync repos and ingest history in background
+    const { syncReposFromGitHub } = require('../services/github')
+    syncReposFromGitHub(user).catch(e => console.error('Initial sync failed:', e.message))
+
+    const jwt = signToken(user.id)
+    const callbackPath = process.env.FRONTEND_CALLBACK || '/auth/callback'
+    res.redirect(`${process.env.FRONTEND_URL}${callbackPath}?token=${jwt}`)
+  } catch (err) {
+    const msg = err.response?.data ? JSON.stringify(err.response.data) : err.message
+    console.error('GitHub OAuth error:', msg)
+    res.redirect(`${FRONTEND_URL}?error=oauth_failed`)
+  }
+})
+
+// GET /api/auth/me — return current user
+router.get('/me', require('../middleware/auth').requireAuth, (req, res) => {
+  const { githubAccessToken, ...safe } = req.user
+  res.json(safe)
+})
+
+module.exports = router

@@ -1,0 +1,143 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                 String      @id @default(uuid())
+  githubId           String      @unique
+  login              String
+  name               String?
+  avatarUrl          String?
+  email              String?
+  momentumPoints     Int         @default(0)
+  vibeScore          Int         @default(50)
+  streak             Int         @default(0)
+  badges             Json?       // Array of { type, name, desc, icon, tier, earnedAt }
+  githubAccessToken  String?
+  projects           Project[]
+  milestones         Milestone[]
+  devlogs            DevLog[]
+  feedItems          FeedItem[]
+  sprintsCreated     Sprint[]    @relation("SprintCreator")
+  sprintsParticipated Sprint[]  @relation("SprintParticipants")
+  circlesOwned       Circle[]    @relation("CircleOwner")
+  circlesMemberOf    Circle[]    @relation("CircleMembers")
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+}
+
+model Project {
+  id             String      @id @default(uuid())
+  userId         String
+  user           User        @relation(fields: [userId], references: [id])
+  name           String
+  fullName       String?
+  repoUrl        String
+  description    String?
+  language       String?
+  stars          Int         @default(0)
+  phase          String      @default("vibe")
+  vibeScore      Int         @default(50)
+  momentumPoints Int         @default(0)
+  commitCount    Int         @default(0)
+  healthScore    Int         @default(100)
+  lastSyncedAt   String?     // Keeping as string to match current logic
+  milestones     Milestone[]
+  devlogs        DevLog[]
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([userId])
+}
+
+model Milestone {
+  id             String   @id @default(uuid())
+  projectId      String
+  project        Project  @relation(fields: [projectId], references: [id])
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  title          String
+  summary        String
+  type           String   @default("auto")
+  tags           String[]
+  suggestions    String[]
+  vibeShift      Int      @default(0)
+  boosts         Int      @default(0)
+  published      Boolean  @default(false)
+  sentiment      String?
+  sentimentEmoji String?
+  createdAt      String?  // Matching current db.js logic of storing as ISO string
+
+  @@index([projectId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model DevLog {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id])
+  projectName String
+  title       String
+  content     String
+  mood        String?
+  duration    Int?
+  commits     Int      @default(0)
+  createdAt   String?  // Matching current db.js logic
+
+  @@index([projectId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Circle {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  ownerId     String
+  owner       User     @relation("CircleOwner", fields: [ownerId], references: [id])
+  members     User[]   @relation("CircleMembers")
+  inviteCode  String   @unique
+  createdAt   DateTime @default(now())
+
+  @@index([ownerId])
+}
+
+model FeedItem {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String
+  content   String
+  metadata  Json?
+  boosts    Int      @default(0)
+  comments  Json?    // Array of { id, text, userId, login, avatarUrl, createdAt }
+  createdAt String?  // Matching current db.js logic
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Sprint {
+  id           String   @id @default(uuid())
+  title        String
+  creatorId    String
+  creator      User     @relation("SprintCreator", fields: [creatorId], references: [id])
+  startsAt     String
+  endsAt       String
+  participants User[]   @relation("SprintParticipants")
+  scores       Json?    // { userId: score }
+  status       String   @default("active")
+  createdAt    DateTime @default(now())
+
+  @@index([endsAt])
+}
